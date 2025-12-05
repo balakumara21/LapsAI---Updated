@@ -24,6 +24,7 @@ namespace LapsAI
 
             // Add device-specific services used by the LapsAI.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
+           // builder.Services.AddSingleton<LapsAI.Shared.Services.AzureAIService>();
 
             builder.Services.AddCorrelationId();
 

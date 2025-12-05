@@ -21,7 +21,7 @@ builder.Services.AddSyncfusionBlazor();
 
 // Add device-specific services used by the LapsAI.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
-
+//builder.Services.AddTransient<AzureAIService>();
 builder.Services.AddCorrelationId();
 
 

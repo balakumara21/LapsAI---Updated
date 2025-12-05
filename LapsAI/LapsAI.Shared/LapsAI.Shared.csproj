@@ -14,6 +14,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Syncfusion.Blazor" Version="31.2.16" />
+    <PackageReference Include="Syncfusion.Blazor.AI" Version="31.2.16" />
     <PackageReference Include="Syncfusion.Maui.Core" Version="31.2.16" />
     <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.8" />
   </ItemGroup>
