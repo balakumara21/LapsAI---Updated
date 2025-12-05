@@ -1,0 +1,248 @@
+﻿@page "/flowchartold"
+
+@namespace TextToFlowchartDiagram
+@implements IDisposable
+
+@using Syncfusion.Blazor.Diagram
+@using Syncfusion.Blazor.Diagram.SymbolPalette
+@using System.Collections.ObjectModel
+@using Syncfusion.Blazor.Spinner
+@using Microsoft.JSInterop
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.SplitButtons
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.DropDowns
+
+
+<style>
+    /* ------------------------------ */
+    /* CSS for Layout and Responsiveness */
+    /* ------------------------------ */
+    .sb-mobile-diagram {
+        width: 70%;
+        height: 100%;
+        float: left;
+    }
+
+    .sb-mobile-palette {
+        width: 30%;
+        height: 100%;
+        float: left;
+        display: block;
+        border: 1px solid #ccc;
+    }
+
+   
+    
+    /* Custom styles for Syncfusion components (from your original CSS) */
+    .e-dialog.custom-dialog .e-dlg-header-content + .e-dlg-content {
+        padding: 16px;
+    }
+    /* ... (rest of the original CSS omitted for brevity but should be included) ... */
+
+</style>
+
+
+<title>Syncfusion Flowchart Creator</title>
+
+<div class="control-section" style="height: calc(100vh - 54px); width: 100%">
+    
+    <div class="sb-mobile-palette-bar">
+        @* Button to toggle the palette on mobile/hybrid devices *@
+        <div id="palette-icon" style="float: right;" role="button" @onclick="ShowHideSymbolPalette" class="e-ddb-icons1 e-toggle-palette"></div>
+    </div>
+    
+    @* Toolbar component reference removed as it was external (FlowchartDiagramToolbar) *@
+    
+    <div style="height: 100%; width: 100%;">
+        
+        @* ------------------------------ *@
+        @* Symbol Palette Component *@
+        @* ------------------------------ *@
+        <div id="palette-space" class="sb-mobile-palette" style="display: none; height: 100%; width: 30%; float: left; border: 1px solid #ccc">
+            <SfSymbolPaletteComponent @ref="PaletteInstance" ID="SymbolPalette" Palettes="@palettes" 
+                                      SymbolHeight="50" SymbolWidth="50" 
+                                      SymbolPreview="@SymbolPreview" 
+                                      Height="100%" Width="100%">
+            </SfSymbolPaletteComponent>
+        </div>
+        
+        @* ------------------------------ *@
+        @* Diagram Component *@
+        @* ------------------------------ *@
+        <SfDiagramComponent @ref="Diagram" ID="Diagram" 
+                            OnCreated="@Created" 
+                            Connectors="@connectors" 
+                            Nodes="@nodes" 
+                            OnHistoryChange="@OnHistoryChange"
+                            @* SelectionSettings="@selectionSettings"  *@
+                            Drop="@DragDropEvent"
+                            NodeCreating="@OnNodeCreating" 
+                            ConnectorCreating="@OnConnectorCreating"
+                            @bind-Tool="@DiagramTool" 
+                            Width="100%" Height="100%" 
+                            CssClass="sb-mobile-diagram">
+            <RulerSettings>
+                <HorizontalRuler></HorizontalRuler>
+                <VerticalRuler></VerticalRuler>
+            </RulerSettings>
+            <SnapSettings>
+                <HorizontalGridLines LineColor="#e0e0e0 " LineIntervals="@GridLineIntervals"></HorizontalGridLines>
+                <VerticalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals"></VerticalGridLines>
+            </SnapSettings>
+            <PageSettings MultiplePage="true"></PageSettings>
+            <ContextMenuSettings Show="true" ContextMenuItemClicked="@ContextMenuItemClickHandler"></ContextMenuSettings>
+            <Layout Type="LayoutType.Flowchart" ></Layout>
+            <SfSpinner @ref="@SpinnerRef" Label="Generating diagram...." Type="@SpinnerType.Bootstrap"> </SfSpinner>
+        </SfDiagramComponent>
+    </div>
+    
+    @* Uploader component for saving/loading diagram files *@
+    <div style="display: none;visibility: hidden;">
+        <SfUploader  ID="UploadFiles" ShowFileList="false" >
+            <UploaderEvents></UploaderEvents>
+            <UploaderAsyncSettings SaveUrl="https://blazor.syncfusion.com/services/production/api/FileUploader/Save"
+                                   RemoveUrl="https://blazor.syncfusion.com/services/production/api/FileUploader/Remove"></UploaderAsyncSettings>
+        </SfUploader>
+    </div>
+</div>
+
+@code {
+    // ------------------------------
+    // C# Logic
+    // ------------------------------
+#pragma warning disable CS8618
+    public SfDiagramComponent Diagram;
+    public SfSymbolPaletteComponent PaletteInstance;
+    public SfSpinner SpinnerRef;
+    public DiagramSize SymbolPreview;
+    public DiagramInteractions DiagramTool;
+    public double[] GridLineIntervals { get; set; } = new double[] { };
+    
+    // Collections
+    private DiagramObjectCollection<Node> nodes = new DiagramObjectCollection<Node>();
+    private DiagramObjectCollection<Connector> connectors = new DiagramObjectCollection<Connector>();
+    private DiagramObjectCollection<Palette> palettes = new DiagramObjectCollection<Palette>();
+    private DiagramObjectCollection<NodeBase> flowShapeSymbols = new DiagramObjectCollection<NodeBase>();
+    private DiagramObjectCollection<NodeBase> connectorSymbols = new DiagramObjectCollection<NodeBase>();
+    
+    [Inject]
+    protected IJSRuntime jsRuntime { get; set; }
+#pragma warning restore CS8618
+
+    protected override void OnInitialized()
+    {
+        // Define grid line intervals (for background grid appearance)
+        GridLineIntervals = new double[] { 1, 9, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75 };
+        InitDiagramModel();
+        InitPaletteModel();
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if(PaletteInstance != null) {
+            // Register the diagram instance as a drop target for the palette
+            PaletteInstance.Targets = new DiagramObjectCollection<SfDiagramComponent> { Diagram };
+        }
+    }
+
+    private void InitDiagramModel()
+    {
+        // Creates a sample flowchart model (Start -> Process -> Decision -> ...)
+        CreateNode("node1", 40, 120, NodeFlowShapes.Terminator, "Start", "#8E44CC");
+        CreateNode("node2", 50, 150, NodeFlowShapes.Process, "Initialize Application", "#1759B7");
+        CreateNode("node3", 80, 150, NodeFlowShapes.Decision, "Is User Logged In?", "#357BD2");
+        CreateNode("node4", 110, 150, NodeFlowShapes.Terminator, "End", "#8E44CC");
+
+        CreateConnector("connector1", "node1", "node2");
+        CreateConnector("connector2", "node2", "node3");
+        CreateConnector("connector3", "node3", "node4", "No");
+        CreateConnector("connector4", "node3", "node4", "Yes"); // Simplified for example
+    }
+    
+    private void InitPaletteModel()
+    {
+        SymbolPreview = new DiagramSize() { Width = 70, Height = 70 };
+        
+        // Define standard flowchart shapes for the palette
+        CreateNode("Terminator", 0, 0, NodeFlowShapes.Terminator, "Terminator");
+        CreateNode("Process", 0, 0, NodeFlowShapes.Process, "Process");
+        CreateNode("Decision", 0, 0, NodeFlowShapes.Decision, "Decision");
+        // ... include all desired shapes ...
+
+        // Define connector types for the palette
+        // CreateConnector("Straight", ConnectorSegmentType.Straight, "Straight");
+        // CreateConnector("Orthogonal", ConnectorSegmentType.Orthogonal, "Orthogonal");
+        // CreateConnector("Bezier", ConnectorSegmentType.Bezier, "Bezier");
+
+        palettes = new DiagramObjectCollection<Palette>
+        {
+            new Palette() {Symbols = flowShapeSymbols, Title = "Flow Shapes", ID = "Flow Shapes", IconCss = "e-ddb-icons e-flow"},
+            new Palette() {Symbols = connectorSymbols, Title = "Connectors", IsExpanded = true, IconCss = "e-ddb-icons e-connector"},
+        };
+    }
+    
+    // Helper to create Nodes for both diagram and palette
+    private void CreateNode(string id, double x, double y, NodeFlowShapes shape, string label, string fill = "white")
+    {
+        Node node = new Node()
+        {
+            ID = id, OffsetX = x, OffsetY = y, Width = 100, Height = 60,
+            Style = new ShapeStyle() { Fill = fill, StrokeColor = "White" },
+            // Annotations = new ObservableCollection<ShapeAnnotation>() { new ShapeAnnotation() { Content = label, Style = new TextStyle() { Color = "White", FontSize = 12 } } },
+            // Shape = new FlowShape() { Type = "Flow", Shape = shape }
+        };
+        
+        if (x == 0 && y == 0) { flowShapeSymbols.Add(node); } else { nodes.Add(node); }
+    }
+    
+    // Helper to create Connectors for both diagram and palette
+    private void CreateConnector(string id, string sourceId, string targetId, string label = null)
+    {
+        Connector connector = new Connector()
+        {
+            ID = id, SourceID = sourceId, TargetID = targetId,
+        //     Style = new ConnectorStyle() { StrokeColor = "#4B5563", StrokeWidth = 2 },
+        //     TargetDecorator = new Decorator() { Shape = DecoratorShape.Arrow, Width = 8, Height = 8, Style = new ShapeStyle() { Fill = "#4B5563", StrokeColor = "#4B5563" } }
+        // 
+        };
+        
+        if (id == "Straight" || id == "Orthogonal" || id == "Bezier") {
+            connector.Type = id == "Straight" ? ConnectorSegmentType.Straight : (id == "Orthogonal" ? ConnectorSegmentType.Orthogonal : ConnectorSegmentType.Bezier);
+            connector.TargetDecorator.Shape = DecoratorShape.None;
+            connector.Style.StrokeDashArray = "2,2";
+        }
+        
+        if (label != null) { connector.Annotations = new DiagramObjectCollection<PathAnnotation>() { new PathAnnotation() { Content = label, Style = new TextStyle() { Fill = "white" } } }; }
+        connector.Type = ConnectorSegmentType.Orthogonal;
+        
+        if (sourceId == null && targetId == null) { connectorSymbols.Add(connector); } else { connectors.Add(connector); }
+    }
+    
+    // JavaScript Interop for toggling the Symbol Palette (handles the mobile view)
+    private void ShowHideSymbolPalette()
+    {
+        jsRuntime.InvokeVoidAsync("ShowHidePalette");
+    }
+
+    // Lifecycle/Event Handlers
+    private void Created() { /* Event logic */ }
+    private void OnHistoryChange(HistoryChangedEventArgs arg) { /* History/Undo/Redo logic */ }
+    private void DragDropEvent(DropEventArgs args) { /* Drag/Drop logic */ }
+    private void OnNodeCreating(IDiagramObject obj) { /* Node creation logic */ }
+    private void OnConnectorCreating(IDiagramObject obj) { /* Connector creation logic */ }
+    private void ContextMenuItemClickHandler(DiagramMenuClickEventArgs args) { /* Context menu logic */ }
+    //private void OnUploadFileSelected(UploadStartEventArgs args) { /* Uploader logic */ }
+
+    // IDisposable for resource cleanup
+    public void Dispose()
+    {
+        // Recommended cleanup to prevent memory leaks in Blazor
+        if (nodes != null) nodes.Clear();
+        if (connectors != null) connectors.Clear();
+        if (flowShapeSymbols != null) flowShapeSymbols.Clear();
+        if (connectorSymbols != null) connectorSymbols.Clear();
+    }
+}

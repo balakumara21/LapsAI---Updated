@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Syncfusion.Blazor" Version="31.2.16" />
+    <PackageReference Include="Syncfusion.Maui.Core" Version="31.2.16" />
+    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\LapsAIDAO\LapsAIDAO.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.AI">
+      <HintPath>..\..\..\smart-ai-samples-master\blazor\SyncfusionAISamples\bin\Debug\net9.0\Microsoft.Extensions.AI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
